@@ -29,14 +29,16 @@ class Homepage(Screen) :
         self.image_rect = Rectangle(size = (width, height), texture = CoreImage(self.filepath).texture)
         self.canvas.add(self.image_rect)
 
+        self.pixeate_image = im.copy()
         self.pixelate_rect = Rectangle(size = (width, height), texture = CoreImage(self.filepath).texture)
         self.canvas.add(self.pixelate_rect)
 
         self.pixel_slider = Slider(0, ((Window.width - width)//2, (Window.height - height)//2), self.pixelate_rect.size)
 
-        self.on_layout((Window.width, Window.height))
+        self.label = Label()
+        self.add_widget(self.label)
 
-        # self.add_widget(KivySlider(min=0, max=width, value=0))
+        self.on_layout((Window.width, Window.height))
 
 
     def on_layout(self, winsize):
@@ -50,17 +52,35 @@ class Homepage(Screen) :
         self.pixel_slider = Slider(0, self.pixelate_rect.pos, self.pixelate_rect.size)
         self.canvas.add(self.pixel_slider)
 
+        self.label.center_x = Window.width/2
+        self.label.center_y = 19*Window.height/20
+        self.label.font_size = str(Window.width//170) + 'sp'
+
+
+    def on_touch_down(self, touch):
+        self.pixel_slider.on_touch_down(touch)
 
     def on_touch_up(self, touch):
         self.pixel_slider.on_touch_up(touch)
 
+    def on_touch_move(self, touch):
+        self.pixel_slider.on_touch_move(touch)
 
     def on_update(self):
-        self.pixel_slider.on_update()
+        value = self.pixel_slider.on_update()
+
+        # Resize smoothly down to 16x16 pixels
+        width_in_pixels = max(1, round(self.image.size[0]*value))
+        height_in_pixels = max(1, round(self.image.size[1]*value))
+        imgSmall = self.image.resize((width_in_pixels, height_in_pixels), resample=Image.BILINEAR)
+        # Scale back up using NEAREST to original size
+        self.pixeate_image = imgSmall.resize(self.image.size, Image.NEAREST)
 
         data = BytesIO()
-        self.image.save(data, format='png')
+        self.pixeate_image.save(data, format='png')
         data.seek(0)
 
         # update image
-        self.image_rect.texture = CoreImage(BytesIO(data.read()), ext='png').texture
+        self.pixelate_rect.texture = CoreImage(BytesIO(data.read()), ext='png').texture
+
+        self.label.text = "This requires " + str(math.ceil(width_in_pixels*height_in_pixels / 55)) + " sets of dominoes"
