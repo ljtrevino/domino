@@ -16,6 +16,7 @@ from PIL import Image, ImageEnhance, ImageOps
 import numpy as np
 
 from slider import Slider
+import calculate
 
 class Homepage(Screen) :
     def __init__(self, filepath, **kwargs):
@@ -29,11 +30,12 @@ class Homepage(Screen) :
         self.image_rect = Rectangle(size = (width, height), texture = CoreImage(self.filepath).texture)
         self.canvas.add(self.image_rect)
 
-        self.pixeate_image = im.copy()
+        self.pixeate_image = im.convert("L").copy()
         self.pixelate_rect = Rectangle(size = (width, height), texture = CoreImage(self.filepath).texture)
         self.canvas.add(self.pixelate_rect)
 
-        self.pixel_slider = Slider(0, ((Window.width - width)//2, (Window.height - height)//2), self.pixelate_rect.size)
+        self.value = 1
+        self.pixel_slider = Slider(1, ((Window.width - width)//2, (Window.height - height)//2), self.pixelate_rect.size)
 
         self.label = Label()
         self.add_widget(self.label)
@@ -49,13 +51,12 @@ class Homepage(Screen) :
         if self.pixel_slider in self.canvas.children:
             self.canvas.remove(self.pixel_slider)
 
-        self.pixel_slider = Slider(0, self.pixelate_rect.pos, self.pixelate_rect.size)
+        self.pixel_slider = Slider(1, self.pixelate_rect.pos, self.pixelate_rect.size)
         self.canvas.add(self.pixel_slider)
 
         self.label.center_x = Window.width/2
         self.label.center_y = 19*Window.height/20
         self.label.font_size = str(Window.width//170) + 'sp'
-
 
     def on_touch_down(self, touch):
         self.pixel_slider.on_touch_down(touch)
@@ -67,20 +68,25 @@ class Homepage(Screen) :
         self.pixel_slider.on_touch_move(touch)
 
     def on_update(self):
-        value = self.pixel_slider.on_update()
+        if not self.value == self.pixel_slider.on_update():
+            self.value = self.pixel_slider.on_update()
 
-        # Resize smoothly down to 16x16 pixels
-        width_in_pixels = max(1, round(self.image.size[0]*value))
-        height_in_pixels = max(1, round(self.image.size[1]*value))
-        imgSmall = self.image.resize((width_in_pixels, height_in_pixels), resample=Image.BILINEAR)
-        # Scale back up using NEAREST to original size
-        self.pixeate_image = imgSmall.resize(self.image.size, Image.NEAREST)
+            # Resize smoothly down to 16x16 pixels
+            width_in_pixels = max(1, round(self.image.size[0]*self.value))
+            height_in_pixels = max(1, round(self.image.size[1]*self.value))
+            imgSmall = self.image.resize((width_in_pixels, height_in_pixels), resample=Image.BILINEAR)
 
-        data = BytesIO()
-        self.pixeate_image.save(data, format='png')
-        data.seek(0)
+            print(calculate.image_to_scaled_array(imgSmall))
 
-        # update image
-        self.pixelate_rect.texture = CoreImage(BytesIO(data.read()), ext='png').texture
+            # Scale back up using NEAREST to original size
+            self.pixeate_image = imgSmall.resize(self.image.size, Image.NEAREST).convert("L")
 
-        self.label.text = "This requires " + str(math.ceil(width_in_pixels*height_in_pixels / 55)) + " sets of dominoes"
+            data = BytesIO()
+            self.pixeate_image.save(data, format='png')
+            data.seek(0)
+
+            # update image
+            self.pixelate_rect.texture = CoreImage(BytesIO(data.read()), ext='png').texture
+
+            # update label
+            self.label.text = "This requires " + str(math.ceil(width_in_pixels*height_in_pixels / 55)) + " sets of dominoes"
