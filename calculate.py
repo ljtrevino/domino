@@ -1,6 +1,7 @@
 import numpy as np
 import random
 from PIL import Image
+from scipy.ndimage.measurements import label
 
 def image_to_scaled_array(image):
     img_array = np.array(image.convert("L"))
@@ -71,7 +72,8 @@ def find_empty_orthogonal_neighbors(grid, i, j):
     return empty_neighbors
 
 
-def find_odd_empty_regions(grid):
+# TODO: remove this function
+def find_odd_empty_regions_old(grid):
     visited = set()
     region_counts = []
 
@@ -91,6 +93,22 @@ def find_odd_empty_regions(grid):
 
     # returns True if odd empty regions exist, otherwise False
     return len(list(filter(lambda x : x%2 == 1, region_counts))) > 0
+
+
+
+def find_odd_empty_regions(grid):
+    # multiply by -1 so it finds the empty regions (where -1 means a cell is empty)
+    # i.e. converts [[ -1  1 -1 ]] to [[ 1  0  1 ]]
+    # because we want to find regions of -1's in the original grid
+    new_grid = grid * -1
+    new_grid[new_grid == -1] = 0
+
+    labeled_grid, ncomponents = label(new_grid)
+    for n in range(1, ncomponents + 1):
+        if np.count_nonzero(labeled_grid == n) % 2 == 1:
+            return True
+
+    return False
 
 
 def visualize_domino_grid(width, height, dominoes):
@@ -132,30 +150,29 @@ def generate_domino_graphics(imgSmall, width_in_pixels, height_in_pixels):
     background.save('out.png')
 
 
-    # img = Image.open('./images/bean.png', 'r')
-    # img_w, img_h = img.size
-    # background = Image.new('RGBA', (1440, 900), (255, 255, 255, 255))
-    # bg_w, bg_h = background.size
-    # offset = ((bg_w - img_w) // 2, (bg_h - img_h) // 2)
-    # background.paste(img, offset)
-    # background.save('out.png')
 
 if __name__ == '__main__':
     grid = np.array([[1,-1,1], [1,-1, 1], [1,1,-1]])
     # empty_cells = np.where(grid == 0)
     # print(list(zip(empty_cells[0], empty_cells[1])))
 
-    # print(find_odd_empty_regions(np.array([[-1,  1,  -1],
+    # print(find_odd_empty_regions(np.array([[-1, -1,  -1],
     #                                        [ 1,  1,  -1],
-    #                                        [ 1,  -1,  -1]])))
+    #                                        [ 1,  1,   1]])))
 
     # print(find_empty_orthogonal_neighbors(grid, 1, 1))
 
     # random_pattern_generator(6,5)
 
 
-    im = Image.open("./images/bean.png").convert("RGBA")
-    value = 0.025
+
+
+
+    ######################################################
+    #           TEST generate_domino_graphics            #
+    ######################################################
+    im = Image.open("./images/paddington.png").convert("RGBA")
+    value = 0.1
     width_in_pixels = max(1, round(im.size[0]*value))
     height_in_pixels = max(1, round(im.size[1]*value))
     print(width_in_pixels, height_in_pixels)
