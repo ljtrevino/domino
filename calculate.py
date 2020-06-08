@@ -1,5 +1,6 @@
 import numpy as np
 import random
+from PIL import Image
 
 def image_to_scaled_array(image):
     img_array = np.array(image.convert("L"))
@@ -78,15 +79,15 @@ def find_odd_empty_regions(grid):
     if len(empty_cells) == 0:
         return False
 
-    def dfs(grid, visited, i, j):
+    def dfs(grid, i, j):
         # add to visited
         visited.add((i, j))
-        return sum([dfs(grid, visited, r, c) if (r, c) in empty_cells and (r, c) not in visited else 0 for r,c in [(i-1, j), (i+1, j), (i, j-1), (i, j+1)]]) + 1
+        return sum([dfs(grid, r, c) if (r, c) in empty_cells and (r, c) not in visited else 0 for r,c in [(i-1, j), (i+1, j), (i, j-1), (i, j+1)]]) + 1
 
     # perform dfs until all empty cells have been visited
     while not visited == empty_cells:
         i, j = list(empty_cells - visited)[0]
-        region_counts.append(dfs(grid, visited, i, j))
+        region_counts.append(dfs(grid, i, j))
 
     # returns True if odd empty regions exist, otherwise False
     return len(list(filter(lambda x : x%2 == 1, region_counts))) > 0
@@ -100,9 +101,44 @@ def visualize_domino_grid(width, height, dominoes):
         grid[c][d] = counter
         counter += 1
 
+    print("\n domino_layout:")
     print("===================")
     print(grid)
     print("===================")
+
+def generate_domino_graphics(imgSmall, width_in_pixels, height_in_pixels):
+    domino_values = image_to_scaled_array(imgSmall)
+    print("domino_values")
+    print(domino_values)
+    domino_layout = random_pattern_generator(width_in_pixels, height_in_pixels)
+
+    # each domino image is 404 x 810
+    background = Image.new('RGBA', (width_in_pixels*405, height_in_pixels*405), (255, 255, 255, 255))
+    bg_w, bg_h = background.size
+
+    for a,b,c,d in domino_layout:
+        first_val = domino_values[a][b]
+        second_val = domino_values[c][d]
+
+        # get domino image and resize to dimensions that have 1:2 ratio
+        domino_img = Image.open('./dominoes/' + str(first_val) + '-' + str(second_val) + '.png', 'r').resize((405, 810), Image.NEAREST)
+
+        # if horizontal orientation, rotate image
+        domino_img = domino_img.rotate(90, expand=True) if a == c else domino_img
+
+        offset = (b*405, a*405)
+        background.paste(domino_img, offset)
+
+    background.save('out.png')
+
+
+    # img = Image.open('./images/bean.png', 'r')
+    # img_w, img_h = img.size
+    # background = Image.new('RGBA', (1440, 900), (255, 255, 255, 255))
+    # bg_w, bg_h = background.size
+    # offset = ((bg_w - img_w) // 2, (bg_h - img_h) // 2)
+    # background.paste(img, offset)
+    # background.save('out.png')
 
 if __name__ == '__main__':
     grid = np.array([[1,-1,1], [1,-1, 1], [1,1,-1]])
@@ -115,4 +151,14 @@ if __name__ == '__main__':
 
     # print(find_empty_orthogonal_neighbors(grid, 1, 1))
 
-    random_pattern_generator(2,4)
+    # random_pattern_generator(6,5)
+
+
+    im = Image.open("./images/bean.png").convert("RGBA")
+    value = 0.025
+    width_in_pixels = max(1, round(im.size[0]*value))
+    height_in_pixels = max(1, round(im.size[1]*value))
+    print(width_in_pixels, height_in_pixels)
+    imgSmall = im.resize((width_in_pixels, height_in_pixels), resample=Image.BILINEAR)
+
+    generate_domino_graphics(imgSmall, width_in_pixels, height_in_pixels)

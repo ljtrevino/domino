@@ -23,19 +23,23 @@ class Homepage(Screen) :
         super(Homepage, self).__init__(**kwargs)
 
         self.filepath = filepath
+
+        # LEFT IMAGE #
         im = Image.open(filepath).convert("RGBA")
         self.image = im.copy()
-
         width, height = self.image.size
         self.image_rect = Rectangle(size = (width, height), texture = CoreImage(self.filepath).texture)
         self.canvas.add(self.image_rect)
 
+        # CENTER PIXELATED IMAGE & SLIDER #
         self.pixeate_image = im.convert("L").copy()
         self.pixelate_rect = Rectangle(size = (width, height), texture = CoreImage(self.filepath).texture)
         self.canvas.add(self.pixelate_rect)
-
         self.value = 1
         self.pixel_slider = Slider(1, ((Window.width - width)//2, (Window.height - height)//2), self.pixelate_rect.size)
+
+        # RIGHT DOMINO IMAGE #
+
 
         self.label = Label()
         self.add_widget(self.label)
@@ -76,7 +80,8 @@ class Homepage(Screen) :
             height_in_pixels = max(1, round(self.image.size[1]*self.value))
             imgSmall = self.image.resize((width_in_pixels, height_in_pixels), resample=Image.BILINEAR)
 
-            print(calculate.image_to_scaled_array(imgSmall))
+            # print(calculate.image_to_scaled_array(imgSmall))
+            # calculate.generate_domino_graphics(imgSmall, width_in_pixels, height_in_pixels)
 
             # Scale back up using NEAREST to original size
             self.pixeate_image = imgSmall.resize(self.image.size, Image.NEAREST).convert("L")
