@@ -28,14 +28,15 @@ class Homepage(Screen) :
         im = Image.open(filepath).convert("RGBA")
         self.image = im.copy()
         width, height = self.image.size
+        self.w_h_ratio = width / height
         self.image_rect = Rectangle(size = (width, height), texture = CoreImage(self.filepath).texture)
         self.canvas.add(self.image_rect)
 
         # CENTER PIXELATED IMAGE & SLIDER #
-        self.pixeate_image = im.convert("L").copy()
+        self.pixeate_image = im.copy()
         self.pixelate_rect = Rectangle(size = (width, height), texture = CoreImage(self.filepath).texture)
         self.canvas.add(self.pixelate_rect)
-        self.value = 1
+        self.value = None
         self.pixel_slider = Slider(1, ((Window.width - width)//2, (Window.height - height)//2), self.pixelate_rect.size)
 
         # RIGHT DOMINO IMAGE #
@@ -44,8 +45,8 @@ class Homepage(Screen) :
         self.label = Label()
         self.add_widget(self.label)
 
+        self.on_update()
         self.on_layout((Window.width, Window.height))
-
 
     def on_layout(self, winsize):
         width, height = self.image.size
@@ -75,13 +76,11 @@ class Homepage(Screen) :
         if not self.value == self.pixel_slider.on_update():
             self.value = self.pixel_slider.on_update()
 
-            # Resize smoothly down to 16x16 pixels
-            width_in_pixels = max(1, round(self.image.size[0]*self.value))
-            height_in_pixels = max(1, round(self.image.size[1]*self.value))
-            imgSmall = self.image.resize((width_in_pixels, height_in_pixels), resample=Image.BILINEAR)
-
-            print(str(width_in_pixels) + 'x' + str(height_in_pixels))
-            print("sets of dominoes required: " + str(math.ceil(width_in_pixels*height_in_pixels / 55)))
+            # Scale value based on dominoes produced
+            num_sets = self.value
+            height_in_pixels = max(1, math.sqrt(55*num_sets / self.w_h_ratio))
+            width_in_pixels = max(1, self.w_h_ratio * height_in_pixels)
+            imgSmall = self.image.resize((round(width_in_pixels), round(height_in_pixels)), resample=Image.BILINEAR)
 
             # calculate.generate_domino_graphics(imgSmall, width_in_pixels, height_in_pixels)
 
