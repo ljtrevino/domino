@@ -80,7 +80,9 @@ class Homepage(Screen) :
             height_in_pixels = max(1, round(self.image.size[1]*self.value))
             imgSmall = self.image.resize((width_in_pixels, height_in_pixels), resample=Image.BILINEAR)
 
-            # print(calculate.image_to_scaled_array(imgSmall))
+            print(str(width_in_pixels) + 'x' + str(height_in_pixels))
+            print("sets of dominoes required: " + str(math.ceil(width_in_pixels*height_in_pixels / 55)))
+
             # calculate.generate_domino_graphics(imgSmall, width_in_pixels, height_in_pixels)
 
             # Scale back up using NEAREST to original size

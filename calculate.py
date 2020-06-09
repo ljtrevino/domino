@@ -152,7 +152,7 @@ def generate_domino_graphics(imgSmall, width_in_pixels, height_in_pixels):
 
 
 if __name__ == '__main__':
-    grid = np.array([[1,-1,1], [1,-1, 1], [1,1,-1]])
+    # grid = np.array([[1,-1,1], [1,-1, 1], [1,1,-1]])
     # empty_cells = np.where(grid == 0)
     # print(list(zip(empty_cells[0], empty_cells[1])))
 
@@ -163,9 +163,6 @@ if __name__ == '__main__':
     # print(find_empty_orthogonal_neighbors(grid, 1, 1))
 
     # random_pattern_generator(6,5)
-
-
-
 
 
     ######################################################
