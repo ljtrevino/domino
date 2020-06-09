@@ -34,24 +34,38 @@ class Homepage(Screen) :
 
         # CENTER PIXELATED IMAGE & SLIDER #
         self.pixeate_image = im.copy()
-        self.pixelate_rect = Rectangle(size = (width, height), texture = CoreImage(self.filepath).texture)
+        self.pixelate_rect = Rectangle(size = (width, height))
         self.canvas.add(self.pixelate_rect)
         self.value = None
         self.pixel_slider = Slider(1, ((Window.width - width)//2, (Window.height - height)//2), self.pixelate_rect.size)
 
-        # RIGHT DOMINO IMAGE #
+        self.generate_pressed = False
+        self.generate_button = Rectangle(size = (0.75*width, 0.75*width/4.24), texture = CoreImage('./images/generate_button.png').texture)
+        self.canvas.add(self.generate_button)
 
+        # RIGHT DOMINO IMAGE #
+        self.domino_image = Image.new(mode='RGBA', size=(width, height), color=(235, 74, 90, 150))
+        data = BytesIO()
+        self.domino_image.save(data, format='png')
+        data.seek(0)
+        self.domino_rect = Rectangle(size = (width, height), texture=CoreImage(BytesIO(data.read()), ext='png').texture)
+        self.canvas.add(self.domino_rect)
 
         self.label = Label()
         self.add_widget(self.label)
+
+        self.imgSmall = None
 
         self.on_update()
         self.on_layout((Window.width, Window.height))
 
     def on_layout(self, winsize):
         width, height = self.image.size
-        self.image_rect.pos = (Window.width - width)//20, (Window.height - height)//2
+        self.image_rect.pos = (Window.width - width)/20, (Window.height - height)//2
         self.pixelate_rect.pos = (Window.width - width)//2, (Window.height - height)//2
+        self.domino_rect.pos = 19*(Window.width - width)/20, (Window.height - height)//2
+
+        self.generate_button.pos = ((Window.width - 0.75*width)//2, (Window.height - height)//2 - Window.height//8)
 
         if self.pixel_slider in self.canvas.children:
             self.canvas.remove(self.pixel_slider)
@@ -60,7 +74,7 @@ class Homepage(Screen) :
         self.canvas.add(self.pixel_slider)
 
         self.label.center_x = Window.width/2
-        self.label.center_y = 19*Window.height/20
+        self.label.center_y = (Window.height - height)//2 + height + Window.height/20
         self.label.font_size = str(Window.width//170) + 'sp'
 
     def on_touch_down(self, touch):
@@ -68,6 +82,12 @@ class Homepage(Screen) :
 
     def on_touch_up(self, touch):
         self.pixel_slider.on_touch_up(touch)
+
+        # handle generate button press
+        if self.generate_button.pos[0] <= touch.pos[0] <= self.generate_button.pos[0] + self.generate_button.size[0] and \
+        self.generate_button.pos[1] <= touch.pos[1] <= self.generate_button.pos[1] + self.generate_button.size[1]:
+            self.generate_pressed = True
+            self.generate_button.texture = CoreImage('./images/generating_button.png').texture
 
     def on_touch_move(self, touch):
         self.pixel_slider.on_touch_move(touch)
@@ -79,13 +99,15 @@ class Homepage(Screen) :
             # Scale value based on dominoes produced
             num_sets = self.value
             height_in_pixels = max(1, math.sqrt(55*num_sets / self.w_h_ratio))
-            width_in_pixels = max(1, self.w_h_ratio * height_in_pixels)
-            imgSmall = self.image.resize((round(width_in_pixels), round(height_in_pixels)), resample=Image.BILINEAR)
-
-            # calculate.generate_domino_graphics(imgSmall, width_in_pixels, height_in_pixels)
+            # make height even so that number of pixels is even and dominoes can fill entire image
+            height_in_pixels = height_in_pixels + 1 if round(height_in_pixels) % 2 == 1 else height_in_pixels
+            # round values to nearest integer
+            width_in_pixels = round(max(1, self.w_h_ratio * height_in_pixels))
+            height_in_pixels = round(height_in_pixels)
+            self.imgSmall = self.image.resize((width_in_pixels, height_in_pixels), resample=Image.BILINEAR)
 
             # Scale back up using NEAREST to original size
-            self.pixeate_image = imgSmall.resize(self.image.size, Image.NEAREST).convert("L")
+            self.pixeate_image = self.imgSmall.resize(self.image.size, Image.NEAREST).convert("L")
 
             data = BytesIO()
             self.pixeate_image.save(data, format='png')
@@ -95,4 +117,17 @@ class Homepage(Screen) :
             self.pixelate_rect.texture = CoreImage(BytesIO(data.read()), ext='png').texture
 
             # update label
-            self.label.text = "This requires " + str(math.ceil(width_in_pixels*height_in_pixels / 55)) + " sets of dominoes"
+            self.label.text = "This would require " + str(math.ceil(width_in_pixels*height_in_pixels / 55)) + " sets of dominoes ( " + str(width_in_pixels*height_in_pixels) + " dominoes in total )"
+
+        # generate domino image on button press
+        if self.generate_pressed:
+            # create and update domino image
+            self.domino_image = calculate.generate_domino_graphics(self.imgSmall, self.imgSmall.size[0], self.imgSmall.size[1])
+            data = BytesIO()
+            self.domino_image.save(data, format='png')
+            data.seek(0)
+            self.domino_rect.texture = CoreImage(BytesIO(data.read()), ext='png').texture
+
+            # return generate button to former state
+            self.generate_button.texture = CoreImage('./images/generate_button.png').texture
+            self.generate_pressed = False

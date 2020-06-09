@@ -21,7 +21,7 @@ class Slider(InstructionGroup):
         self.add(self.line)
 
         dim_size = min(0.03*Window.width, 0.03*Window.height)
-        self.add(Color(rgb=(136/255, 195/255, 0)))
+        self.add(Color(rgb=(235/255, 74/255, 90/255)))
         self.slider_knob = CEllipse(cpos=(self.image_pos[0] + (((self.value - self.min_val) / (self.max_val - self.min_val))*self.image_size[0]), self.image_pos[1] - Window.height//20), csize=(dim_size, dim_size))
         self.knob_selected = False
         self.add(self.slider_knob)

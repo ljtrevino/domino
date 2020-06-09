@@ -148,6 +148,7 @@ def generate_domino_graphics(imgSmall, width_in_pixels, height_in_pixels):
         background.paste(domino_img, offset)
 
     background.save('out.png')
+    return background
 
 
 
