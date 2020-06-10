@@ -29,18 +29,18 @@ class Homepage(Screen) :
         self.image = im.copy()
         width, height = self.image.size
         self.w_h_ratio = width / height
-        self.image_rect = Rectangle(size = (width, height), texture = CoreImage(self.filepath).texture)
+        self.image_rect = Rectangle(texture = CoreImage(self.filepath).texture)
         self.canvas.add(self.image_rect)
 
         # CENTER PIXELATED IMAGE & SLIDER #
         self.pixeate_image = im.copy()
-        self.pixelate_rect = Rectangle(size = (width, height))
+        self.pixelate_rect = Rectangle()
         self.canvas.add(self.pixelate_rect)
         self.value = None
-        self.pixel_slider = Slider(1, ((Window.width - width)//2, (Window.height - height)//2), self.pixelate_rect.size)
+        self.pixel_slider = Slider(1, ((Window.width - self.image_rect.size[0])//2, (Window.height - self.image_rect.size[1])//2), self.pixelate_rect.size)
 
         self.generate_pressed = False
-        self.generate_button = Rectangle(size = (0.75*width, 0.75*width/4.24), texture = CoreImage('./images/generate_button.png').texture)
+        self.generate_button = Rectangle(texture = CoreImage('./images/generate_button.png').texture)
         self.canvas.add(self.generate_button)
 
         # RIGHT DOMINO IMAGE #
@@ -48,7 +48,7 @@ class Homepage(Screen) :
         data = BytesIO()
         self.domino_image.save(data, format='png')
         data.seek(0)
-        self.domino_rect = Rectangle(size = (width, height), texture=CoreImage(BytesIO(data.read()), ext='png').texture)
+        self.domino_rect = Rectangle(texture=CoreImage(BytesIO(data.read()), ext='png').texture)
         self.canvas.add(self.domino_rect)
 
         self.label = Label()
@@ -61,11 +61,16 @@ class Homepage(Screen) :
 
     def on_layout(self, winsize):
         width, height = self.image.size
-        self.image_rect.pos = (Window.width - width)/20, (Window.height - height)//2
-        self.pixelate_rect.pos = (Window.width - width)//2, (Window.height - height)//2
-        self.domino_rect.pos = 19*(Window.width - width)/20, (Window.height - height)//2
+        display_width = Window.width/3.5
+        self.image_rect.pos = (Window.width-display_width)/20, (Window.height - 1/self.w_h_ratio*display_width)//2
+        self.image_rect.size = (display_width, 1/self.w_h_ratio*display_width)
+        self.pixelate_rect.pos = (Window.width-display_width)/2, (Window.height - 1/self.w_h_ratio*display_width)//2
+        self.pixelate_rect.size = (display_width, 1/self.w_h_ratio*display_width)
+        self.domino_rect.pos = 19*(Window.width-display_width)/20, (Window.height - 1/self.w_h_ratio*display_width)//2
+        self.domino_rect.size = (display_width, 1/self.w_h_ratio*display_width)
 
-        self.generate_button.pos = ((Window.width - 0.75*width)//2, (Window.height - height)//2 - Window.height//8)
+        self.generate_button.pos = (Window.width-0.75*display_width)/2, self.pixelate_rect.pos[1] - Window.height//10 - 0.75*display_width/4.24
+        self.generate_button.size = (0.75*display_width, 0.75*display_width/4.24)
 
         if self.pixel_slider in self.canvas.children:
             self.canvas.remove(self.pixel_slider)
@@ -74,7 +79,7 @@ class Homepage(Screen) :
         self.canvas.add(self.pixel_slider)
 
         self.label.center_x = Window.width/2
-        self.label.center_y = (Window.height - height)//2 + height + Window.height/20
+        self.label.center_y = (Window.height + 1/self.w_h_ratio*display_width)//2 + Window.height/20
         self.label.font_size = str(Window.width//170) + 'sp'
 
     def on_touch_down(self, touch):

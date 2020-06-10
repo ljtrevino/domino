@@ -29,7 +29,7 @@ class Slider(InstructionGroup):
 
     def on_update(self):
         return self.value
-
+        
 
     def on_touch_down(self, touch):
         if self.line.points[0] - min(0.03*Window.width, 0.03*Window.height) <= touch.pos[0] <= self.line.points[2] + min(0.03*Window.width, 0.03*Window.height) and \

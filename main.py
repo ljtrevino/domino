@@ -9,7 +9,7 @@ from kivy.core.window import Window
 from home import Homepage
 
 # Makes window open full screen
-Window.fullscreen = 'auto'
+# Window.fullscreen = 'auto'
 
 if __name__ == "__main__":
     if (len(sys.argv) >= 2): # ['main.py', 'filepath', '...']
