@@ -19,7 +19,7 @@ def image_to_scaled_array(image):
 def random_pattern_generator(width, height):
     assert width * height % 2 == 0, "Cannot find pattern for image with an odd number of pixels"
 
-    dominoes = set() # contains tuples of (row, col, row2, col2)
+    rectangles = set() # contains tuples of (row, col, row2, col2)
 
     grid = np.full((height, width), -1)
     i, j = 0, 0
@@ -28,11 +28,11 @@ def random_pattern_generator(width, height):
         # place rectangle randomly at position (i,j), (i+1,j), or (i,j), (i, j+1)
         orientation = random.randint(0,1)
         if orientation == 0:
-            dominoes.add((i, j, i+1, j))
+            rectangles.add((i, j, i+1, j))
             grid[i][j] = 1
             grid[i+1][j] = 1
         else:
-            dominoes.add((i, j, i, j+1))
+            rectangles.add((i, j, i, j+1))
             grid[i][j] = 1
             grid[i][j+1] = 1
 
@@ -41,7 +41,7 @@ def random_pattern_generator(width, height):
         while len(empty_cells_list) > 0 and len(find_empty_orthogonal_neighbors(grid, empty_cells_list[0][0], empty_cells_list[0][1])) == 1 and not find_odd_empty_regions(grid):
             i, j = empty_cells_list[0]
             adjacent_empty_cell = find_empty_orthogonal_neighbors(grid, i, j)[0]
-            dominoes.add((i, j, adjacent_empty_cell[0], adjacent_empty_cell[1]))
+            rectangles.add((i, j, adjacent_empty_cell[0], adjacent_empty_cell[1]))
             grid[i][j] = 1
             grid[adjacent_empty_cell[0]][adjacent_empty_cell[1]] = 1
             # update empty cells list
@@ -50,11 +50,11 @@ def random_pattern_generator(width, height):
         # if there is a region of an odd number of connected empty cells in the grid then wipe out part of the grid
         if find_odd_empty_regions(grid):
             # clear out 2 prior rows
-            new_dominoes = set(filter(lambda x: (x[1] < j-2) and (x[3] < j-2) , dominoes))
-            for a, b, c, d in dominoes - new_dominoes:
+            new_rectangles = set(filter(lambda x: (x[1] < j-2) and (x[3] < j-2) , rectangles))
+            for a, b, c, d in rectangles - new_rectangles:
                 grid[a][b] = -1
                 grid[c][d] = -1
-            dominoes = new_dominoes
+            rectangles = new_rectangles
 
         # find next empty cell
         empty_cells_list = list(zip(np.where(grid == -1)[0], np.where(grid == -1)[1]))
@@ -63,8 +63,8 @@ def random_pattern_generator(width, height):
         else:
             empty_cell_exists = False
 
-    visualize_domino_grid(width, height, dominoes)
-    return dominoes
+    visualize_rectangle_grid(width, height, rectangles)
+    return rectangles
 
 def find_empty_orthogonal_neighbors(grid, i, j):
     empty_neighbors = []
@@ -72,30 +72,6 @@ def find_empty_orthogonal_neighbors(grid, i, j):
         if 0 <= m < len(grid) and 0 <= n < len(grid[0]) and grid[m][n] == -1:
             empty_neighbors.append((m, n))
     return empty_neighbors
-
-
-# TODO: remove this function
-def find_odd_empty_regions_old(grid):
-    visited = set()
-    region_counts = []
-
-    empty_cells = set(zip(np.where(grid == -1)[0], np.where(grid == -1)[1]))
-    if len(empty_cells) == 0:
-        return False
-
-    def dfs(grid, i, j):
-        # add to visited
-        visited.add((i, j))
-        return sum([dfs(grid, r, c) if (r, c) in empty_cells and (r, c) not in visited else 0 for r,c in [(i-1, j), (i+1, j), (i, j-1), (i, j+1)]]) + 1
-
-    # perform dfs until all empty cells have been visited
-    while not visited == empty_cells:
-        i, j = list(empty_cells - visited)[0]
-        region_counts.append(dfs(grid, i, j))
-
-    # returns True if odd empty regions exist, otherwise False
-    return len(list(filter(lambda x : x%2 == 1, region_counts))) > 0
-
 
 
 def find_odd_empty_regions(grid):
@@ -113,10 +89,10 @@ def find_odd_empty_regions(grid):
     return False
 
 
-def visualize_domino_grid(width, height, dominoes):
+def visualize_rectangle_grid(width, height, rectangles):
     counter = 0
     grid = np.full((height, width), -1)
-    for a, b, c, d in dominoes:
+    for a, b, c, d in rectangles:
         grid[a][b] = counter
         grid[c][d] = counter
         counter += 1
@@ -128,22 +104,12 @@ def visualize_domino_grid(width, height, dominoes):
 
 def generate_domino_graphics(imgSmall, width_in_pixels, height_in_pixels):
     rect_values = image_to_scaled_array(imgSmall)
-    print("rectangle values")
-    print(rect_values)
     rect_layout = random_pattern_generator(width_in_pixels, height_in_pixels)
 
 
 
-
-
-    k = math.ceil(width_in_pixels*height_in_pixels / 2 / 55)
     rect_val_to_loc = generate_rect_val_to_loc(rect_layout, rect_values)
-    num_dominos = width_in_pixels*height_in_pixels / 2
-    print("SOLVING LP PROBLEM")
-    solve_LP(k, rect_val_to_loc, num_dominos)
-    solve_LP(k, rect_val_to_loc, num_dominos)
-
-
+    final_domino_grid = solve_LP(rect_values, rect_val_to_loc, width_in_pixels, height_in_pixels)
 
 
     # each domino image is 404 x 810
@@ -151,8 +117,8 @@ def generate_domino_graphics(imgSmall, width_in_pixels, height_in_pixels):
     bg_w, bg_h = background.size
 
     for a,b,c,d in rect_layout:
-        first_val = rect_values[a][b]
-        second_val = rect_values[c][d]
+        first_val = int(final_domino_grid[a][b])
+        second_val = int(final_domino_grid[c][d])
 
         # get domino image and resize to dimensions that have 1:2 ratio
         domino_img = Image.open('./dominoes/' + str(first_val) + '-' + str(second_val) + '.png', 'r').resize((405, 810), Image.NEAREST)
@@ -168,18 +134,20 @@ def generate_domino_graphics(imgSmall, width_in_pixels, height_in_pixels):
 
 
 
-
-
-
 '''
 An area is a set of all rectangles with identical pairs of costs in the pattern
 Area j corresponds to a rectangle of cost (j_1,j_2)
 
-k = number of sets of dominoes                                      math.ceil(width_in_pixels*height_in_pixels / 55)
 capa_j = number of rectangles with identical values in area_j       len(rect_val_to_loc[area_vals[j]])
 nbArea = total number of areas (nbArea ≤55)                         len(rect_val_to_loc) or len(area_vals)
 '''
-def solve_LP(k, rect_val_to_loc, num_dominos):
+def solve_LP(rect_values, rect_val_to_loc, width_in_pixels, height_in_pixels):
+    # k is total number of sets of dominoes
+    k = math.ceil(width_in_pixels*height_in_pixels / 2 / 55)
+
+    # num_rects is the total number of rectangles we need to assign dominoes to
+    num_rects = width_in_pixels*height_in_pixels / 2
+
     # create list of domino values (where d_i = domino_vals[i])
     domino_vals = list(itertools.combinations_with_replacement([0,1,2,3,4,5,6,7,8,9], 2))
 
@@ -190,7 +158,6 @@ def solve_LP(k, rect_val_to_loc, num_dominos):
     def cost(i, j):
         # since incoming values should be (low, high) we do not need to account for inverting the orientation because cost will be minimized as is
         cost_ij = (domino_vals[i][0]-area_vals[j][0])**2 + (domino_vals[i][1]-area_vals[j][1])**2
-        # print("cost of (" + str(i) + ", " + str(j) + ") is " + str(cost_ij))
         return cost_ij
 
     ##################################
@@ -216,34 +183,35 @@ def solve_LP(k, rect_val_to_loc, num_dominos):
         capa_j = len(rect_val_to_loc[area_vals[j]])
         prob += lpSum([xij_vars[(i,j)] for i in range(len(domino_vals))]) <= capa_j
 
-    # add third constraint to ensure that sum of all x_ij values is num_dominos
-    prob += lpSum([xij_vars[(i,j)] for i in range(len(domino_vals)) for j in range(len(area_vals))]) == num_dominos
+    # add third constraint to ensure that sum of all x_ij values is num_rects
+    prob += lpSum([xij_vars[(i,j)] for i in range(len(domino_vals)) for j in range(len(area_vals))]) == num_rects
 
     # solve the LP
-    print(prob)
-
     prob.solve()
-    print("Status:", LpStatus[prob.status])
 
-    # print results of variable assignments
-    x_ij_sum = 0
-    print("(i, j)  |   variable value   |  cost(i, j)  |  len(area_vals[j])")
+    # create final_domino_grid array that is just a grid of the final value assignments
+    final_domino_grid = np.empty([height_in_pixels, width_in_pixels])
+
     for i in range(len(domino_vals)):
         for j in range(len(area_vals)):
-            x_ij_sum += xij_vars[(i,j)].varValue
-            if xij_vars[(i,j)].varValue > 0:
-                print((i, j), '\t\t', xij_vars[(i,j)].varValue, '\t\t', cost(i, j), '\t\t', len(area_vals[j]))
-    print("sum of xij values assigned", x_ij_sum)
-    print(len(domino_vals)-1, len(area_vals)-1)
+            xij = int(xij_vars[(i,j)].varValue)
+            # remove dominoes from rect_val_to_loc[area_vals[j]] and assign those the domino i with orientation determined by trying to minimize cost
+            rects_to_be_assigned_dominoes = rect_val_to_loc[area_vals[j]][:xij] # i.e. [(1,1,2,1), ...]
+            rect_val_to_loc[area_vals[j]] = rect_val_to_loc[area_vals[j]][xij:]
 
-    print("k")
-    print(k)
-    print("num_dominos")
-    print(num_dominos)
-    print("rect_val_to_loc")
-    print(rect_val_to_loc)
-    print("area_vals")
-    print(area_vals)
+            for a,b,c,d in rects_to_be_assigned_dominoes:
+                # figure out if domino needs to be flipped to minimize cost & update final_domino_grid 2D array
+                if (domino_vals[i][0]-rect_values[a][b])**2 + (domino_vals[i][1]-rect_values[c][d])**2 > (domino_vals[i][0]-rect_values[c][d])**2 + (domino_vals[i][1]-rect_values[a][b])**2:
+                    # we need to flip the domino order when we assign it
+                    final_domino_grid[a][b] = domino_vals[i][1]
+                    final_domino_grid[c][d] = domino_vals[i][0]
+                else:
+                    # assign as is
+                    final_domino_grid[a][b] = domino_vals[i][0]
+                    final_domino_grid[c][d] = domino_vals[i][1]
+
+    # return final_domino_grid and then generate_domino_graphics should use final_domino_grid instead of rect_values
+    return final_domino_grid
 
 
 def generate_rect_val_to_loc(rect_layout, rect_values):
@@ -261,7 +229,6 @@ def generate_rect_val_to_loc(rect_layout, rect_values):
             rect_val_to_loc[(min(val1, val2), max(val1, val2))] = [(a,b,c,d)]
 
     return rect_val_to_loc
-
 
 
 
@@ -297,15 +264,16 @@ if __name__ == '__main__':
     ######################################################
     #                  TEST solve_LP                     #
     ######################################################
-    '''
-    -----------------
-    | 2 | 4 | 3 | 1 |
-    -----------------
-    | 8 | 9 | 9 | 7 |
-    -----------------
-    | 1 | 3 | 4 | 2 |
-    -----------------
-    '''
+
+    # '''
+    # -----------------
+    # | 2 | 4 | 3 | 1 |
+    # -----------------
+    # | 8 | 9 | 9 | 7 |
+    # -----------------
+    # | 1 | 3 | 4 | 2 |
+    # -----------------
+    # '''
 
     # rect_val_to_loc = {
     #                     (2, 4): [(0, 0, 0, 1), (2, 2, 2, 3)],

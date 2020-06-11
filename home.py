@@ -122,12 +122,13 @@ class Homepage(Screen) :
             self.pixelate_rect.texture = CoreImage(BytesIO(data.read()), ext='png').texture
 
             # update label
-            self.label.text = "This would require " + str(math.ceil(width_in_pixels*height_in_pixels / 2 / 55)) + " sets of dominoes ( " + str(width_in_pixels*height_in_pixels/2) + " dominoes in total )"
+            self.label.text = "This would require " + str(math.ceil(width_in_pixels*height_in_pixels / 2 / 55)) + " sets of dominoes ( " + str(width_in_pixels*height_in_pixels//2) + " dominoes in total )"
 
         # generate domino image on button press
         if self.generate_pressed:
             # create and update domino image
             self.domino_image = calculate.generate_domino_graphics(self.imgSmall, self.imgSmall.size[0], self.imgSmall.size[1])
+            print("GENERATION COMPLETE")
             data = BytesIO()
             self.domino_image.save(data, format='png')
             data.seek(0)
