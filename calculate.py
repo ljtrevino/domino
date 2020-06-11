@@ -1,7 +1,9 @@
+import random, math, itertools
 import numpy as np
-import random
-from PIL import Image
+from pulp import *
 from scipy.ndimage.measurements import label
+from PIL import Image
+
 
 def image_to_scaled_array(image):
     img_array = np.array(image.convert("L"))
@@ -119,24 +121,36 @@ def visualize_domino_grid(width, height, dominoes):
         grid[c][d] = counter
         counter += 1
 
-    print("\n domino_layout:")
+    print("\n rect_layout:")
     print("===================")
     print(grid)
     print("===================")
 
 def generate_domino_graphics(imgSmall, width_in_pixels, height_in_pixels):
-    domino_values = image_to_scaled_array(imgSmall)
-    print("domino_values")
-    print(domino_values)
-    domino_layout = random_pattern_generator(width_in_pixels, height_in_pixels)
+    rect_values = image_to_scaled_array(imgSmall)
+    print("rectangle values")
+    print(rect_values)
+    rect_layout = random_pattern_generator(width_in_pixels, height_in_pixels)
+
+
+
+
+
+    k = math.ceil(width_in_pixels*height_in_pixels / 55)
+    rect_val_to_loc = generate_rect_val_to_loc(rect_layout, rect_values)
+    print("SOLVING LP PROBLEM")
+    solve_LP(k, rect_val_to_loc)
+
+
+
 
     # each domino image is 404 x 810
     background = Image.new('RGBA', (width_in_pixels*405, height_in_pixels*405), (255, 255, 255, 255))
     bg_w, bg_h = background.size
 
-    for a,b,c,d in domino_layout:
-        first_val = domino_values[a][b]
-        second_val = domino_values[c][d]
+    for a,b,c,d in rect_layout:
+        first_val = rect_values[a][b]
+        second_val = rect_values[c][d]
 
         # get domino image and resize to dimensions that have 1:2 ratio
         domino_img = Image.open('./dominoes/' + str(first_val) + '-' + str(second_val) + '.png', 'r').resize((405, 810), Image.NEAREST)
@@ -152,7 +166,91 @@ def generate_domino_graphics(imgSmall, width_in_pixels, height_in_pixels):
 
 
 
+
+
+
+'''
+An area is a set of all rectangles with identical pairs of costs in the pattern
+Area j corresponds to a rectangle of cost (j_1,j_2)
+
+k = number of sets of dominoes                                      math.ceil(width_in_pixels*height_in_pixels / 55)
+capa_j = number of rectangles with identical values in area_j       len(rect_val_to_loc[area_vals[j]])
+nbArea = total number of areas (nbArea ≤55)                         len(rect_val_to_loc) or len(area_vals)
+'''
+def solve_LP(k, rect_val_to_loc):
+    # create list of domino values (where d_i = domino_vals[i])
+    domino_vals = list(itertools.combinations_with_replacement([0,1,2,3,4,5,6,7,8,9], 2))
+
+    # create list of area values ((a,b) = (j_1, j_2) = area_vals[j])
+    area_vals = sorted(rect_val_to_loc.keys())
+
+    # create function for computing the cost of placing domino i in rectangle j
+    def cost(i, j):
+        # since incoming values should be (low, high) we do not need to account for inverting the orientation because cost will be minimized as is
+        return (domino_vals[i][0]-area_vals[j][0])**2 + (domino_vals[i][1]-area_vals[j][1])**2
+
+
+    ##################################
+    #           LP Problem           #
+    ##################################
+    # declare problem to be a minimization LP problem
+    prob = LpProblem("Domino Optimization Problem",LpMinimize)
+
+    # define xij variables
+    xij_vars = LpVariable.dicts("Xij", ((i, j) for i in range(len(domino_vals)) for j in range(len(area_vals))), lowBound=0, cat='Integer')
+
+    # add main objective function
+    prob += lpSum([cost(i,j)*xij_vars[(i,j)] for i in range(len(domino_vals)) for j in range(len(area_vals))])
+
+    # add ﬁrst constraint of this linear program, which ensures that exactly k dominoes of each kind are assigned.
+    for i in range(len(domino_vals)):
+        # TODO: constraint was originally == k, but shouldn't we allow for not all dominoes of last set to be used? (i.e. k-1 is allowed too?)
+        prob += lpSum([xij_vars[(i,j)] for j in range(len(area_vals))]) >= k-1
+
+    # add second constraint to ensure that no more than capa_j dominoes are placed in the same area
+    for j in range(len(area_vals)):
+        capa_j = len(rect_val_to_loc[area_vals[j]])
+        prob += lpSum([xij_vars[(i,j)] for i in range(len(domino_vals))]) <= capa_j
+
+    # solve the LP
+    print(prob)
+
+    prob.solve()
+    print("Status:", LpStatus[prob.status])
+
+    # print results of variable assignments
+    x_ij_sum = 0
+    for i in range(len(domino_vals)):
+        for j in range(len(area_vals)):
+            x_ij_sum += xij_vars[(i,j)].varValue
+            if xij_vars[(i,j)].varValue > 0:
+                print((i, j), xij_vars[(i,j)].varValue)
+    print("sum of xij values assigned", x_ij_sum)
+
+
+def generate_rect_val_to_loc(rect_layout, rect_values):
+    # (val_lower, val_higher) => (a, b, c, d) indices
+    rect_val_to_loc = {}
+
+    for a,b,c,d in rect_layout:
+        val1 = rect_values[a][b]
+        val2 = rect_values[c][d]
+
+        # update rect_val_to_loc
+        if (min(val1, val2), max(val1, val2)) in rect_val_to_loc:
+            rect_val_to_loc[(min(val1, val2), max(val1, val2))].append((a,b,c,d))
+        else:
+            rect_val_to_loc[(min(val1, val2), max(val1, val2))] = [(a,b,c,d)]
+
+    return rect_val_to_loc
+
+
+
+
+
+
 if __name__ == '__main__':
+    pass
     # grid = np.array([[1,-1,1], [1,-1, 1], [1,1,-1]])
     # empty_cells = np.where(grid == 0)
     # print(list(zip(empty_cells[0], empty_cells[1])))
@@ -169,11 +267,11 @@ if __name__ == '__main__':
     ######################################################
     #           TEST generate_domino_graphics            #
     ######################################################
-    im = Image.open("./images/paddington.png").convert("RGBA")
-    value = 0.1
-    width_in_pixels = max(1, round(im.size[0]*value))
-    height_in_pixels = max(1, round(im.size[1]*value))
-    print(width_in_pixels, height_in_pixels)
-    imgSmall = im.resize((width_in_pixels, height_in_pixels), resample=Image.BILINEAR)
-
-    generate_domino_graphics(imgSmall, width_in_pixels, height_in_pixels)
+    # im = Image.open("./images/paddington.png").convert("RGBA")
+    # value = 0.1
+    # width_in_pixels = max(1, round(im.size[0]*value))
+    # height_in_pixels = max(1, round(im.size[1]*value))
+    # print(width_in_pixels, height_in_pixels)
+    # imgSmall = im.resize((width_in_pixels, height_in_pixels), resample=Image.BILINEAR)
+    #
+    # generate_domino_graphics(imgSmall, width_in_pixels, height_in_pixels)
