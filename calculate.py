@@ -136,10 +136,12 @@ def generate_domino_graphics(imgSmall, width_in_pixels, height_in_pixels):
 
 
 
-    k = math.ceil(width_in_pixels*height_in_pixels / 55)
+    k = math.ceil(width_in_pixels*height_in_pixels / 2 / 55)
     rect_val_to_loc = generate_rect_val_to_loc(rect_layout, rect_values)
+    num_dominos = width_in_pixels*height_in_pixels / 2
     print("SOLVING LP PROBLEM")
-    solve_LP(k, rect_val_to_loc)
+    solve_LP(k, rect_val_to_loc, num_dominos)
+    solve_LP(k, rect_val_to_loc, num_dominos)
 
 
 
@@ -177,7 +179,7 @@ k = number of sets of dominoes                                      math.ceil(wi
 capa_j = number of rectangles with identical values in area_j       len(rect_val_to_loc[area_vals[j]])
 nbArea = total number of areas (nbArea ≤55)                         len(rect_val_to_loc) or len(area_vals)
 '''
-def solve_LP(k, rect_val_to_loc):
+def solve_LP(k, rect_val_to_loc, num_dominos):
     # create list of domino values (where d_i = domino_vals[i])
     domino_vals = list(itertools.combinations_with_replacement([0,1,2,3,4,5,6,7,8,9], 2))
 
@@ -187,8 +189,9 @@ def solve_LP(k, rect_val_to_loc):
     # create function for computing the cost of placing domino i in rectangle j
     def cost(i, j):
         # since incoming values should be (low, high) we do not need to account for inverting the orientation because cost will be minimized as is
-        return (domino_vals[i][0]-area_vals[j][0])**2 + (domino_vals[i][1]-area_vals[j][1])**2
-
+        cost_ij = (domino_vals[i][0]-area_vals[j][0])**2 + (domino_vals[i][1]-area_vals[j][1])**2
+        # print("cost of (" + str(i) + ", " + str(j) + ") is " + str(cost_ij))
+        return cost_ij
 
     ##################################
     #           LP Problem           #
@@ -206,11 +209,15 @@ def solve_LP(k, rect_val_to_loc):
     for i in range(len(domino_vals)):
         # TODO: constraint was originally == k, but shouldn't we allow for not all dominoes of last set to be used? (i.e. k-1 is allowed too?)
         prob += lpSum([xij_vars[(i,j)] for j in range(len(area_vals))]) >= k-1
+        prob += lpSum([xij_vars[(i,j)] for j in range(len(area_vals))]) <= k
 
     # add second constraint to ensure that no more than capa_j dominoes are placed in the same area
     for j in range(len(area_vals)):
         capa_j = len(rect_val_to_loc[area_vals[j]])
         prob += lpSum([xij_vars[(i,j)] for i in range(len(domino_vals))]) <= capa_j
+
+    # add third constraint to ensure that sum of all x_ij values is num_dominos
+    prob += lpSum([xij_vars[(i,j)] for i in range(len(domino_vals)) for j in range(len(area_vals))]) == num_dominos
 
     # solve the LP
     print(prob)
@@ -220,12 +227,23 @@ def solve_LP(k, rect_val_to_loc):
 
     # print results of variable assignments
     x_ij_sum = 0
+    print("(i, j)  |   variable value   |  cost(i, j)  |  len(area_vals[j])")
     for i in range(len(domino_vals)):
         for j in range(len(area_vals)):
             x_ij_sum += xij_vars[(i,j)].varValue
             if xij_vars[(i,j)].varValue > 0:
-                print((i, j), xij_vars[(i,j)].varValue)
+                print((i, j), '\t\t', xij_vars[(i,j)].varValue, '\t\t', cost(i, j), '\t\t', len(area_vals[j]))
     print("sum of xij values assigned", x_ij_sum)
+    print(len(domino_vals)-1, len(area_vals)-1)
+
+    print("k")
+    print(k)
+    print("num_dominos")
+    print(num_dominos)
+    print("rect_val_to_loc")
+    print(rect_val_to_loc)
+    print("area_vals")
+    print(area_vals)
 
 
 def generate_rect_val_to_loc(rect_layout, rect_values):
@@ -243,8 +261,6 @@ def generate_rect_val_to_loc(rect_layout, rect_values):
             rect_val_to_loc[(min(val1, val2), max(val1, val2))] = [(a,b,c,d)]
 
     return rect_val_to_loc
-
-
 
 
 
@@ -275,3 +291,50 @@ if __name__ == '__main__':
     # imgSmall = im.resize((width_in_pixels, height_in_pixels), resample=Image.BILINEAR)
     #
     # generate_domino_graphics(imgSmall, width_in_pixels, height_in_pixels)
+
+
+
+    ######################################################
+    #                  TEST solve_LP                     #
+    ######################################################
+    '''
+    -----------------
+    | 2 | 4 | 3 | 1 |
+    -----------------
+    | 8 | 9 | 9 | 7 |
+    -----------------
+    | 1 | 3 | 4 | 2 |
+    -----------------
+    '''
+
+    # rect_val_to_loc = {
+    #                     (2, 4): [(0, 0, 0, 1), (2, 2, 2, 3)],
+    #                     (1, 3): [(0, 3, 0, 2), (2, 2, 0, 1)],
+    #                     (8, 9): [(1, 0, 1, 1)],
+    #                     (7, 9): [(1, 2, 1, 3)]
+    #                   }
+    # k = 1
+    # num_dominos = 6
+
+    # rect_val_to_loc = {
+    #                     (0, 3): [(4, 9, 5, 9)],
+    #                     (3, 3): [(0, 9, 1, 9), (5, 7, 5, 8), (3, 8, 4, 8)],
+    #                     (3, 4): [(4, 6, 5, 6)],
+    #                     (3, 5): [(3, 7, 4, 7), (3, 0, 4, 0)],
+    #                     (3, 6): [(0, 7, 1, 7), (3, 3, 4, 3), (0, 8, 1, 8)],
+    #                     (4, 4): [(4, 4, 4, 5), (2, 9, 3, 9), (4, 1, 4, 2), (5, 2, 5, 3)],
+    #                     (4, 5): [(5, 0, 5, 1)],
+    #                     (4, 6): [(1, 0, 2, 0)],
+    #                     (5, 5): [(5, 4, 5, 5), (2, 7, 2, 8)],
+    #                     (5, 6): [(3, 5, 3, 6), (0, 6, 1, 6), (3, 1, 3, 2)],
+    #                     (5, 7): [(1, 1, 2, 1)],
+    #                     (5, 8): [(2, 4, 3, 4)],
+    #                     (6, 7): [(0, 2, 1, 2)],
+    #                     (6, 8): [(0, 0, 0, 1), (2, 5, 2, 6)],
+    #                     (7, 8): [(0, 5, 1, 5), (2, 2, 2, 3)],
+    #                     (8, 9): [(0, 3, 1, 3), (0, 4, 1, 4)],
+    #                   }
+    # k = 1
+    # num_dominos = 30
+
+    # solve_LP(k, rect_val_to_loc, num_dominos)
