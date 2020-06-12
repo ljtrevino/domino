@@ -104,12 +104,15 @@ def visualize_rectangle_grid(width, height, rectangles):
 
 def generate_domino_graphics(imgSmall, width_in_pixels, height_in_pixels):
     rect_values = image_to_scaled_array(imgSmall)
+    print("rect_values")
+    print(rect_values)
     rect_layout = random_pattern_generator(width_in_pixels, height_in_pixels)
-
-
+    print(rect_layout)
 
     rect_val_to_loc = generate_rect_val_to_loc(rect_layout, rect_values)
     final_domino_grid = solve_LP(rect_values, rect_val_to_loc, width_in_pixels, height_in_pixels)
+    print("final_domino_grid")
+    print(final_domino_grid)
 
 
     # each domino image is 404 x 810
@@ -121,10 +124,15 @@ def generate_domino_graphics(imgSmall, width_in_pixels, height_in_pixels):
         second_val = int(final_domino_grid[c][d])
 
         # get domino image and resize to dimensions that have 1:2 ratio
-        domino_img = Image.open('./dominoes/' + str(first_val) + '-' + str(second_val) + '.png', 'r').resize((405, 810), Image.NEAREST)
+        domino_img = Image.open('./dominoes/' + str(min(first_val, second_val)) + '-' + str(max(first_val, second_val)) + '.png', 'r').resize((405, 810), Image.NEAREST)
 
         # if horizontal orientation, rotate image
-        domino_img = domino_img.rotate(90, expand=True) if a == c else domino_img
+        if a == c:
+            domino_img = domino_img.rotate(90, expand=True)
+
+        # if rotate image if first value is higher / second value is lower
+        if min(first_val, second_val) == second_val:
+            domino_img = domino_img.rotate(180, expand=True)
 
         offset = (b*405, a*405)
         background.paste(domino_img, offset)
@@ -196,8 +204,8 @@ def solve_LP(rect_values, rect_val_to_loc, width_in_pixels, height_in_pixels):
         for j in range(len(area_vals)):
             xij = int(xij_vars[(i,j)].varValue)
             # remove dominoes from rect_val_to_loc[area_vals[j]] and assign those the domino i with orientation determined by trying to minimize cost
-            rects_to_be_assigned_dominoes = rect_val_to_loc[area_vals[j]][:xij] # i.e. [(1,1,2,1), ...]
-            rect_val_to_loc[area_vals[j]] = rect_val_to_loc[area_vals[j]][xij:]
+            rects_to_be_assigned_dominoes = rect_val_to_loc[area_vals[j]][::-1][:xij] # i.e. [(1,1,2,1), ...]
+            rect_val_to_loc[area_vals[j]] = rect_val_to_loc[area_vals[j]][::-1][xij:]
 
             for a,b,c,d in rects_to_be_assigned_dominoes:
                 # figure out if domino needs to be flipped to minimize cost & update final_domino_grid 2D array
@@ -209,6 +217,7 @@ def solve_LP(rect_values, rect_val_to_loc, width_in_pixels, height_in_pixels):
                     # assign as is
                     final_domino_grid[a][b] = domino_vals[i][0]
                     final_domino_grid[c][d] = domino_vals[i][1]
+
 
     # return final_domino_grid and then generate_domino_graphics should use final_domino_grid instead of rect_values
     return final_domino_grid
@@ -259,7 +268,10 @@ if __name__ == '__main__':
     #
     # generate_domino_graphics(imgSmall, width_in_pixels, height_in_pixels)
 
-
+    im = Image.open("./images/paddington.png").convert("RGBA")
+    imgSmall = im.resize((6, 6), resample=Image.BILINEAR)
+    imgSmall.convert('L').save('example.png')
+    generate_domino_graphics(imgSmall, 6, 6)
 
     ######################################################
     #                  TEST solve_LP                     #
