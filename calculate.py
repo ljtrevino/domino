@@ -1,22 +1,26 @@
-import random, math, itertools
+import random, math, itertools, time
 import numpy as np
 from pulp import *
 from scipy.ndimage.measurements import label
 from PIL import Image
 
 
+
 def image_to_scaled_array(image):
+    t0 = time.time()
     img_array = np.array(image.convert("L"))
 
     # interpolate pixel values to be between 0 and 9
     scaled_array = np.interp(img_array, (img_array.min(), img_array.max()), (0, 9))
     # round and convert to integers
     rounded_array = np.round(scaled_array).astype(int)
-
-    return rounded_array
+    t1 = time.time()
+    print("image_to_scaled_array took", t1-t0, "seconds")
+    return scaled_array # TODO: change to rounded_array for faster times (but less accuracy)
 
 
 def random_pattern_generator(width, height):
+    t0 = time.time()
     assert width * height % 2 == 0, "Cannot find pattern for image with an odd number of pixels"
 
     rectangles = set() # contains tuples of (row, col, row2, col2)
@@ -49,6 +53,7 @@ def random_pattern_generator(width, height):
 
         # if there is a region of an odd number of connected empty cells in the grid then wipe out part of the grid
         if find_odd_empty_regions(grid):
+            print("mistake, clearing last 2 rows")
             # clear out 2 prior rows
             new_rectangles = set(filter(lambda x: (x[1] < j-2) and (x[3] < j-2) , rectangles))
             for a, b, c, d in rectangles - new_rectangles:
@@ -63,7 +68,10 @@ def random_pattern_generator(width, height):
         else:
             empty_cell_exists = False
 
-    visualize_rectangle_grid(width, height, rectangles)
+    # visualize_rectangle_grid(width, height, rectangles)
+
+    t1 = time.time()
+    print("random_pattern_generator took", t1-t0, "seconds")
     return rectangles
 
 def find_empty_orthogonal_neighbors(grid, i, j):
@@ -71,6 +79,7 @@ def find_empty_orthogonal_neighbors(grid, i, j):
     for m, n in [(i-1, j), (i+1, j), (i, j-1), (i, j+1)]:
         if 0 <= m < len(grid) and 0 <= n < len(grid[0]) and grid[m][n] == -1:
             empty_neighbors.append((m, n))
+
     return empty_neighbors
 
 
@@ -102,21 +111,17 @@ def visualize_rectangle_grid(width, height, rectangles):
     print(grid)
     print("===================")
 
-def generate_domino_graphics(imgSmall, width_in_pixels, height_in_pixels):
+def generate_domino_graphics(imgSmall, width_in_pixels, height_in_pixels, filename):
+    t0 = time.time()
     rect_values = image_to_scaled_array(imgSmall)
-    print("rect_values")
-    print(rect_values)
     rect_layout = random_pattern_generator(width_in_pixels, height_in_pixels)
-    print(rect_layout)
 
     rect_val_to_loc = generate_rect_val_to_loc(rect_layout, rect_values)
     final_domino_grid = solve_LP(rect_values, rect_val_to_loc, width_in_pixels, height_in_pixels)
-    print("final_domino_grid")
-    print(final_domino_grid)
 
-
+    t05 = time.time()
     # each domino image is 404 x 810
-    background = Image.new('RGBA', (width_in_pixels*405, height_in_pixels*405), (255, 255, 255, 255))
+    background = Image.new('RGBA', (width_in_pixels*200, height_in_pixels*200), (255, 255, 255, 255))
     bg_w, bg_h = background.size
 
     for a,b,c,d in rect_layout:
@@ -124,7 +129,7 @@ def generate_domino_graphics(imgSmall, width_in_pixels, height_in_pixels):
         second_val = int(final_domino_grid[c][d])
 
         # get domino image and resize to dimensions that have 1:2 ratio
-        domino_img = Image.open('./dominoes/' + str(min(first_val, second_val)) + '-' + str(max(first_val, second_val)) + '.png', 'r').resize((405, 810), Image.NEAREST)
+        domino_img = Image.open('./dominoes/' + str(min(first_val, second_val)) + '-' + str(max(first_val, second_val)) + '.png', 'r').resize((200, 400), Image.NEAREST)
 
         # if horizontal orientation, rotate image
         if a == c:
@@ -134,10 +139,14 @@ def generate_domino_graphics(imgSmall, width_in_pixels, height_in_pixels):
         if min(first_val, second_val) == second_val:
             domino_img = domino_img.rotate(180, expand=True)
 
-        offset = (b*405, a*405)
+        offset = (b*200, a*200)
         background.paste(domino_img, offset)
 
-    background.save('out.png')
+    background.save('./output/' + filename + '_' + str(math.ceil(width_in_pixels*height_in_pixels / 2 / 55)) + '_domino_sets.png')
+
+    t1 = time.time()
+    print("generate_domino_graphics took", t1-t0, "seconds")
+    print("actual image generation part of generate_domino_graphics took", t1-t05, "seconds")
     return background
 
 
@@ -150,6 +159,7 @@ capa_j = number of rectangles with identical values in area_j       len(rect_val
 nbArea = total number of areas (nbArea ≤55)                         len(rect_val_to_loc) or len(area_vals)
 '''
 def solve_LP(rect_values, rect_val_to_loc, width_in_pixels, height_in_pixels):
+    t0 = time.time()
     # k is total number of sets of dominoes
     k = math.ceil(width_in_pixels*height_in_pixels / 2 / 55)
 
@@ -172,7 +182,7 @@ def solve_LP(rect_values, rect_val_to_loc, width_in_pixels, height_in_pixels):
     #           LP Problem           #
     ##################################
     # declare problem to be a minimization LP problem
-    prob = LpProblem("Domino Optimization Problem",LpMinimize)
+    prob = LpProblem("domino_optimization_problem",LpMinimize)
 
     # define xij variables
     xij_vars = LpVariable.dicts("Xij", ((i, j) for i in range(len(domino_vals)) for j in range(len(area_vals))), lowBound=0, cat='Integer')
@@ -220,10 +230,13 @@ def solve_LP(rect_values, rect_val_to_loc, width_in_pixels, height_in_pixels):
 
 
     # return final_domino_grid and then generate_domino_graphics should use final_domino_grid instead of rect_values
+    t1 = time.time()
+    print("solve_LP took", t1-t0, "seconds")
     return final_domino_grid
 
 
 def generate_rect_val_to_loc(rect_layout, rect_values):
+    t0 = time.time()
     # (val_lower, val_higher) => (a, b, c, d) indices
     rect_val_to_loc = {}
 
@@ -237,6 +250,8 @@ def generate_rect_val_to_loc(rect_layout, rect_values):
         else:
             rect_val_to_loc[(min(val1, val2), max(val1, val2))] = [(a,b,c,d)]
 
+    t1 = time.time()
+    print("generate_rect_val_to_loc took", t1-t0, "seconds")
     return rect_val_to_loc
 
 
@@ -255,6 +270,11 @@ if __name__ == '__main__':
 
     # random_pattern_generator(6,5)
 
+    ######################################################
+    #           TEST random_pattern_generator            #
+    ######################################################
+
+    print(random_pattern_generator(50,50))
 
     ######################################################
     #           TEST generate_domino_graphics            #
@@ -268,10 +288,10 @@ if __name__ == '__main__':
     #
     # generate_domino_graphics(imgSmall, width_in_pixels, height_in_pixels)
 
-    im = Image.open("./images/paddington.png").convert("RGBA")
-    imgSmall = im.resize((6, 6), resample=Image.BILINEAR)
-    imgSmall.convert('L').save('example.png')
-    generate_domino_graphics(imgSmall, 6, 6)
+    # im = Image.open("./images/paddington.png").convert("RGBA")
+    # imgSmall = im.resize((6, 6), resample=Image.BILINEAR)
+    # imgSmall.convert('L').save('example.png')
+    # generate_domino_graphics(imgSmall, 6, 6)
 
     ######################################################
     #                  TEST solve_LP                     #

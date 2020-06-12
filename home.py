@@ -23,6 +23,7 @@ class Homepage(Screen) :
         super(Homepage, self).__init__(**kwargs)
 
         self.filepath = filepath
+        self.filename = filepath.replace('.', '/').split('/')[-2]
 
         # LEFT IMAGE #
         im = Image.open(filepath).convert("RGBA")
@@ -102,13 +103,7 @@ class Homepage(Screen) :
             self.value = self.pixel_slider.on_update()
 
             # Scale value based on dominoes produced
-            num_sets = self.value
-            height_in_pixels = max(1, math.sqrt(55*num_sets / self.w_h_ratio))
-            # make height even so that number of pixels is even and dominoes can fill entire image
-            height_in_pixels = height_in_pixels + 1 if round(height_in_pixels) % 2 == 1 else height_in_pixels
-            # round values to nearest integer
-            width_in_pixels = round(max(1, self.w_h_ratio * height_in_pixels))
-            height_in_pixels = round(height_in_pixels)
+            width_in_pixels, height_in_pixels = self.calc_width_and_height()
             self.imgSmall = self.image.resize((width_in_pixels, height_in_pixels), resample=Image.BILINEAR)
 
             # Scale back up using NEAREST to original size
@@ -127,8 +122,10 @@ class Homepage(Screen) :
         # generate domino image on button press
         if self.generate_pressed:
             # create and update domino image
-            self.domino_image = calculate.generate_domino_graphics(self.imgSmall, self.imgSmall.size[0], self.imgSmall.size[1])
+            self.domino_image = calculate.generate_domino_graphics(self.imgSmall, self.imgSmall.size[0], self.imgSmall.size[1], self.filename)
+            self.domino_image.show()
             print("GENERATION COMPLETE")
+
             data = BytesIO()
             self.domino_image.save(data, format='png')
             data.seek(0)
@@ -137,3 +134,13 @@ class Homepage(Screen) :
             # return generate button to former state
             self.generate_button.texture = CoreImage('./images/generate_button.png').texture
             self.generate_pressed = False
+
+    def calc_width_and_height(self):
+        num_sets = self.value
+        height_in_pixels = max(1, math.sqrt(55*num_sets / self.w_h_ratio))
+        # make height even so that number of pixels is even and dominoes can fill entire image
+        height_in_pixels = height_in_pixels + 1 if round(height_in_pixels) % 2 == 1 else height_in_pixels
+        # round values to nearest integer
+        width_in_pixels = round(max(1, self.w_h_ratio * height_in_pixels))
+        height_in_pixels = round(height_in_pixels)
+        return (width_in_pixels, height_in_pixels)
