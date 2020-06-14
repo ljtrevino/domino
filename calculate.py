@@ -2,7 +2,7 @@ import random, math, itertools, time
 import numpy as np
 from pulp import *
 from scipy.ndimage.measurements import label
-from PIL import Image
+from PIL import Image, ImageOps
 
 
 
@@ -111,7 +111,7 @@ def visualize_rectangle_grid(width, height, rectangles):
     print(grid)
     print("===================")
 
-def generate_domino_graphics(imgSmall, width_in_pixels, height_in_pixels, filename):
+def generate_domino_graphics(imgSmall, width_in_pixels, height_in_pixels, filename, switch_on):
     t0 = time.time()
     rect_values = image_to_scaled_array(imgSmall)
     rect_layout = random_pattern_generator(width_in_pixels, height_in_pixels)
@@ -142,7 +142,11 @@ def generate_domino_graphics(imgSmall, width_in_pixels, height_in_pixels, filena
         offset = (b*200, a*200)
         background.paste(domino_img, offset)
 
-    background.save('./output/' + filename + '_' + str(math.ceil(width_in_pixels*height_in_pixels / 2 / 55)) + '_domino_sets.png')
+    if switch_on:
+        # we are using white dominoes
+        background = ImageOps.invert(background.convert('RGB'))
+
+    background.save('./output/' + filename + '_' + str(math.ceil(width_in_pixels*height_in_pixels / 2 / 55)) + '_domino_sets_' + ('white' if switch_on else 'black') + '.png')
 
     t1 = time.time()
     print("generate_domino_graphics took", t1-t0, "seconds")

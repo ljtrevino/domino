@@ -6,7 +6,7 @@ from common.screen import Screen
 
 from kivy.uix.label import Label
 from kivy.core.window import Window
-from kivy.graphics import Rectangle, Rotate, PushMatrix, PopMatrix
+from kivy.graphics import Color, Rectangle
 from kivy.graphics.instructions import InstructionGroup
 from kivy.core.image import Image as CoreImage
 # from kivy.uix.slider import Slider as KivySlider
@@ -16,6 +16,7 @@ from PIL import Image, ImageEnhance, ImageOps
 import numpy as np
 
 from slider import Slider
+from switch import Switch
 import calculate
 
 class Homepage(Screen) :
@@ -24,6 +25,10 @@ class Homepage(Screen) :
 
         self.filepath = filepath
         self.filename = filepath.replace('.', '/').split('/')[-2]
+
+        Window.clearcolor = (0.2, 0.2, 0.2, 1)
+        self.color_switch = Switch()
+        self.canvas.add(self.color_switch)
 
         # LEFT IMAGE #
         im = Image.open(filepath).convert("RGBA")
@@ -83,11 +88,19 @@ class Homepage(Screen) :
         self.label.center_y = (Window.height + 1/self.w_h_ratio*display_width)//2 + Window.height/20
         self.label.font_size = str(Window.width//170) + 'sp'
 
+        self.color_switch.on_layout()
+
     def on_touch_down(self, touch):
         self.pixel_slider.on_touch_down(touch)
 
     def on_touch_up(self, touch):
         self.pixel_slider.on_touch_up(touch)
+        self.color_switch.on_touch_up(touch)
+
+        if self.color_switch.on:
+            Window.clearcolor = (0.7, 0.7, 0.7, 1)
+        else:
+            Window.clearcolor = (0.2, 0.2, 0.2, 1)
 
         # handle generate button press
         if self.generate_button.pos[0] <= touch.pos[0] <= self.generate_button.pos[0] + self.generate_button.size[0] and \
@@ -122,7 +135,7 @@ class Homepage(Screen) :
         # generate domino image on button press
         if self.generate_pressed:
             # create and update domino image
-            self.domino_image = calculate.generate_domino_graphics(self.imgSmall, self.imgSmall.size[0], self.imgSmall.size[1], self.filename)
+            self.domino_image = calculate.generate_domino_graphics((ImageOps.invert(self.imgSmall.convert('RGB')) if self.color_switch.on else self.imgSmall), self.imgSmall.size[0], self.imgSmall.size[1], self.filename, self.color_switch.on)
             self.domino_image.show()
             print("GENERATION COMPLETE")
 
