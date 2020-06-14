@@ -140,7 +140,12 @@ class Homepage(Screen) :
             print("GENERATION COMPLETE")
 
             data = BytesIO()
-            self.domino_image.save(data, format='png')
+            # if image will be too large for kivy texture, resize the image so that it can be rendered
+            if self.domino_image.size[0]*self.domino_image.size[1] > 256000000:
+                print("must resize image! original size was:", self.domino_image.size)
+                self.domino_image.resize((16000,16000), Image.NEAREST).save(data, format='png')
+            else:
+                self.domino_image.save(data, format='png')
             data.seek(0)
             self.domino_rect.texture = CoreImage(BytesIO(data.read()), ext='png').texture
 
