@@ -46,7 +46,7 @@ class Homepage(Screen) :
         self.pixel_slider = Slider(1, ((Window.width - self.image_rect.size[0])//2, (Window.height - self.image_rect.size[1])//2), self.pixelate_rect.size)
 
         self.generate_pressed = False
-        self.generate_button = Rectangle(texture = CoreImage('./images/generate_button.png').texture)
+        self.generate_button = Rectangle(texture = CoreImage('./buttons/generate_button.png').texture)
         self.canvas.add(self.generate_button)
 
         # RIGHT DOMINO IMAGE #
@@ -106,7 +106,7 @@ class Homepage(Screen) :
         if self.generate_button.pos[0] <= touch.pos[0] <= self.generate_button.pos[0] + self.generate_button.size[0] and \
         self.generate_button.pos[1] <= touch.pos[1] <= self.generate_button.pos[1] + self.generate_button.size[1]:
             self.generate_pressed = True
-            self.generate_button.texture = CoreImage('./images/generating_button.png').texture
+            self.generate_button.texture = CoreImage('./buttons/generating_button.png').texture
 
     def on_touch_move(self, touch):
         self.pixel_slider.on_touch_move(touch)
@@ -150,7 +150,7 @@ class Homepage(Screen) :
             self.domino_rect.texture = CoreImage(BytesIO(data.read()), ext='png').texture
 
             # return generate button to former state
-            self.generate_button.texture = CoreImage('./images/generate_button.png').texture
+            self.generate_button.texture = CoreImage('./buttons/generate_button.png').texture
             self.generate_pressed = False
 
     def calc_width_and_height(self):
