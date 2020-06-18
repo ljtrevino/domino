@@ -1,6 +1,6 @@
 # Domino Image Creator
 
-## Running the program
+## Running the application
 This project uses Python 3
 
 After you cd into the domino folder, run the following command with the filepath of the image you want to use (i.e. `images/paddington.png`):  
@@ -15,7 +15,7 @@ If you do not have PIL or Numpy installed, you can run:
 - `$ python -m pip install pillow` 
 - `$ python -m pip install numpy` 
 
-## Using the GUI
+## Using the application
 The image from the filepath you provided will show up on the left side of the screen.  In the center of the screen will be a pixelated version of that image.  Drag the slider to increase or decrease pixelation, which corresponds to the number of dominoes that will be used to generate the final piece (where each pixel represents a single side of a double-nine domino).
 
 The toggle in the top-right corner allows you to toggle between using white dominoes or using black dominoes.  When white dominoes are selected, the GUI background will be lighter.  Likewise, when black dominoes are selected, the GUI background will be darker.
